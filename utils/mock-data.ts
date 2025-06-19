@@ -42,6 +42,9 @@ export interface Recipe {
     lastName: string;
     profilePic: string | null;
     email: string;
+    bio: string | null;
+    phone: string | null;
+    location: string | null;
   };
   ingredients: {
     id: string;
