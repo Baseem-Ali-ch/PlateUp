@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Search, X, SlidersHorizontal } from "lucide-react"
-import { useRecipes } from "@/context/recipe-context"
+import { useRecipeContext } from "@/context/recipe-context"
 import { cuisineTypes, difficultyLevels, cookingTimes, dietaryPreferences, sortOptions } from "@/utils/mock-data"
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import debounce from "lodash.debounce"
 
 export function FilterBar() {
   const {
@@ -26,9 +27,18 @@ export function FilterBar() {
     setSortBy,
     clearFilters,
     filteredRecipes,
-  } = useRecipes()
+    isLoading,
+  } = useRecipeContext()
 
   const [isFilterOpen, setIsFilterOpen] = useState(false)
+
+  // Debounce search input
+  const handleSearchChange = useCallback(
+    debounce((value: string) => {
+      setSearchTerm(value)
+    }, 300),
+    [setSearchTerm]
+  )
 
   const activeFiltersCount = [
     cuisineFilter !== "All Cuisines",
@@ -41,9 +51,13 @@ export function FilterBar() {
     <div className="space-y-6">
       <div className="space-y-2">
         <label className="text-sm font-medium">Cuisine Type</label>
-        <Select value={cuisineFilter} onValueChange={setCuisineFilter}>
+        <Select
+          value={cuisineFilter}
+          onValueChange={setCuisineFilter}
+          placeholder="Select cuisine type"
+        >
           <SelectTrigger>
-            <SelectValue />
+            <SelectValue placeholder="Select cuisine type" />
           </SelectTrigger>
           <SelectContent>
             {cuisineTypes.map((cuisine) => (
@@ -57,9 +71,13 @@ export function FilterBar() {
 
       <div className="space-y-2">
         <label className="text-sm font-medium">Difficulty Level</label>
-        <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
+        <Select
+          value={difficultyFilter}
+          onValueChange={setDifficultyFilter}
+          placeholder="Select difficulty level"
+        >
           <SelectTrigger>
-            <SelectValue />
+            <SelectValue placeholder="Select difficulty level" />
           </SelectTrigger>
           <SelectContent>
             {difficultyLevels.map((level) => (
@@ -73,9 +91,13 @@ export function FilterBar() {
 
       <div className="space-y-2">
         <label className="text-sm font-medium">Cooking Time</label>
-        <Select value={timeFilter} onValueChange={setTimeFilter}>
+        <Select
+          value={timeFilter}
+          onValueChange={setTimeFilter}
+          placeholder="Select cooking time"
+        >
           <SelectTrigger>
-            <SelectValue />
+            <SelectValue placeholder="Select cooking time" />
           </SelectTrigger>
           <SelectContent>
             {cookingTimes.map((time) => (
@@ -89,9 +111,13 @@ export function FilterBar() {
 
       <div className="space-y-2">
         <label className="text-sm font-medium">Dietary Preferences</label>
-        <Select value={dietaryFilter} onValueChange={setDietaryFilter}>
+        <Select
+          value={dietaryFilter}
+          onValueChange={setDietaryFilter}
+          placeholder="Select dietary preferences"
+        >
           <SelectTrigger>
-            <SelectValue />
+            <SelectValue placeholder="Select dietary preferences" />
           </SelectTrigger>
           <SelectContent>
             {dietaryPreferences.map((diet) => (
@@ -121,15 +147,19 @@ export function FilterBar() {
           <Input
             placeholder="Search recipes, ingredients, or tags..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="pl-10"
           />
         </div>
 
         <div className="flex gap-2">
-          <Select value={sortBy} onValueChange={setSortBy}>
+          <Select
+            value={sortBy}
+            onValueChange={setSortBy}
+            placeholder="Sort by"
+          >
             <SelectTrigger className="w-[180px]">
-              <SelectValue />
+              <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
               {sortOptions.map((option) => (
@@ -146,7 +176,9 @@ export function FilterBar() {
               <Button variant="outline" className="sm:hidden relative">
                 <SlidersHorizontal className="w-4 h-4" />
                 {activeFiltersCount > 0 && (
-                  <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 text-xs">{activeFiltersCount}</Badge>
+                  <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 text-xs">
+                    {activeFiltersCount}
+                  </Badge>
                 )}
               </Button>
             </SheetTrigger>
@@ -165,9 +197,13 @@ export function FilterBar() {
 
       {/* Desktop Filters */}
       <div className="hidden sm:grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Select value={cuisineFilter} onValueChange={setCuisineFilter}>
+        <Select
+          value={cuisineFilter}
+          onValueChange={setCuisineFilter}
+          placeholder="Cuisine"
+        >
           <SelectTrigger>
-            <SelectValue />
+            <SelectValue placeholder="Cuisine" />
           </SelectTrigger>
           <SelectContent>
             {cuisineTypes.map((cuisine) => (
@@ -178,9 +214,13 @@ export function FilterBar() {
           </SelectContent>
         </Select>
 
-        <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
+        <Select
+          value={difficultyFilter}
+          onValueChange={setDifficultyFilter}
+          placeholder="Difficulty"
+        >
           <SelectTrigger>
-            <SelectValue />
+            <SelectValue placeholder="Difficulty" />
           </SelectTrigger>
           <SelectContent>
             {difficultyLevels.map((level) => (
@@ -191,9 +231,13 @@ export function FilterBar() {
           </SelectContent>
         </Select>
 
-        <Select value={timeFilter} onValueChange={setTimeFilter}>
+        <Select
+          value={timeFilter}
+          onValueChange={setTimeFilter}
+          placeholder="Time"
+        >
           <SelectTrigger>
-            <SelectValue />
+            <SelectValue placeholder="Time" />
           </SelectTrigger>
           <SelectContent>
             {cookingTimes.map((time) => (
@@ -204,9 +248,13 @@ export function FilterBar() {
           </SelectContent>
         </Select>
 
-        <Select value={dietaryFilter} onValueChange={setDietaryFilter}>
+        <Select
+          value={dietaryFilter}
+          onValueChange={setDietaryFilter}
+          placeholder="Diet"
+        >
           <SelectTrigger>
-            <SelectValue />
+            <SelectValue placeholder="Diet" />
           </SelectTrigger>
           <SelectContent>
             {dietaryPreferences.map((diet) => (
@@ -220,7 +268,7 @@ export function FilterBar() {
 
       {/* Active Filters */}
       {activeFiltersCount > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 py-2 bg-gray-50 rounded-lg">
           <span className="text-sm text-gray-600">Active filters:</span>
           {cuisineFilter !== "All Cuisines" && (
             <Badge variant="secondary" className="gap-1">
@@ -246,15 +294,25 @@ export function FilterBar() {
               <X className="w-3 h-3 cursor-pointer" onClick={() => setDietaryFilter("All Diets")} />
             </Badge>
           )}
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="text-xs">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+            className="text-xs hover:bg-gray-100 rounded-full px-3 py-1.5"
+          >
             Clear all
           </Button>
         </div>
       )}
 
-      {/* Results count */}
-      <div className="text-sm text-gray-600">
-        Showing {filteredRecipes.length} recipe{filteredRecipes.length !== 1 ? "s" : ""}
+      {/* Results count with loading state */}
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-gray-600">
+          {isLoading ? "Loading recipes..." : `Showing ${filteredRecipes.length} recipe${filteredRecipes.length !== 1 ? "s" : ""}`}
+        </div>
+        {isLoading && (
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500" />
+        )}
       </div>
     </div>
   )

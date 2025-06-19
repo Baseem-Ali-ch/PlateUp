@@ -115,14 +115,6 @@ export function RecipeDetails({ recipe, onBack }: RecipeDetailsProps) {
             </Button>
 
             <div className="flex items-center gap-2">
-              <Button
-                variant={isLiked ? "default" : "outline"}
-                onClick={handleLike}
-                className={`gap-2 ${isLiked ? "bg-red-500 hover:bg-red-600" : ""}`}
-              >
-                <Heart className={`w-4 h-4 ${isLiked ? "fill-current" : ""}`} />
-                {likeCount}
-              </Button>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -240,7 +232,7 @@ export function RecipeDetails({ recipe, onBack }: RecipeDetailsProps) {
                             completedSteps.has(step.id) ? "line-through text-gray-500" : ""
                           }`}
                         >
-                          {step.instruction}
+                          {step.content}
                         </p>
                         <Checkbox
                           checked={completedSteps.has(step.id)}
@@ -267,27 +259,30 @@ export function RecipeDetails({ recipe, onBack }: RecipeDetailsProps) {
                 <div className="flex items-center gap-3">
                   <Avatar className="w-12 h-12">
                     <AvatarImage
-                      src={recipe.author.avatar || "/placeholder.svg"}
-                      alt={recipe.author.name}
+                      src={recipe.author.profilePic || "/placeholder.svg"}
+                      alt={recipe.author.firstName + ' ' + recipe.author.lastName}
                       onError={(e) => {
                         e.currentTarget.src = "/placeholder.svg?height=48&width=48"
                       }}
                     />
                     <AvatarFallback>
-                      {recipe.author.name
+                      {(recipe.author.firstName || '')
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
+                      {(recipe.author.lastName || '')
                         .split(" ")
                         .map((n) => n[0])
                         .join("")}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <h3 className="font-semibold">{recipe.author.name}</h3>
-                    <p className="text-sm text-gray-600">{recipe.author.recipeCount} recipes</p>
+                    <h3 className="font-semibold">
+                      {recipe.author.firstName} {recipe.author.lastName}
+                    </h3>
+                    <p className="text-sm text-gray-600">{recipe.author.email}</p>
                   </div>
                 </div>
-                <Button variant="outline" className="w-full">
-                  View Profile
-                </Button>
               </CardContent>
             </Card>
 
@@ -365,13 +360,13 @@ export function RecipeDetails({ recipe, onBack }: RecipeDetailsProps) {
                 </div>
                 <div className="flex justify-between">
                   <span>Created</span>
-                  <span>{recipe.createdAt.toLocaleDateString()}</span>
+                  <span>{new Date(recipe.createdAt).toLocaleDateString()}</span>
                 </div>
-                {recipe.dietaryPreferences.length > 0 && (
+                {recipe.dietaryPrefs.length > 0 && (
                   <div>
                     <span className="block mb-2">Dietary</span>
                     <div className="flex flex-wrap gap-1">
-                      {recipe.dietaryPreferences.map((pref) => (
+                      {recipe.dietaryPrefs.map((pref) => (
                         <Badge key={pref} variant="secondary" className="text-xs">
                           {pref}
                         </Badge>

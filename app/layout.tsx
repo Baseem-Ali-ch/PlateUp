@@ -9,10 +9,11 @@ import { Toaster } from "@/components/ui/toaster"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Recipe Share - Discover & Share Amazing Recipes",
+  title: "PlateUp - Discover Recipes",
   description: "A modern platform for discovering and sharing delicious recipes with a community of food lovers.",
-    generator: 'v0.dev'
-}
+  icons: {
+    icon: '/favicon.png',
+  }}
 
 export default function RootLayout({
   children,

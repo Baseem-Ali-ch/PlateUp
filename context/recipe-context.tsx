@@ -1,8 +1,8 @@
 "use client"
 
-import type React from "react"
+import React, { useEffect } from "react"
 import { createContext, useContext, useState, useMemo } from "react"
-import { mockRecipes, type Recipe } from "@/utils/mock-data"
+import { Recipe } from "@/utils/mock-data"
 
 interface RecipeContextType {
   recipes: Recipe[]
@@ -25,7 +25,7 @@ interface RecipeContextType {
 const RecipeContext = createContext<RecipeContextType | undefined>(undefined)
 
 export function RecipeProvider({ children }: { children: React.ReactNode }) {
-  const [recipes] = useState<Recipe[]>(mockRecipes)
+  const [recipes, setRecipes] = useState<Recipe[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [cuisineFilter, setCuisineFilter] = useState("All Cuisines")
   const [difficultyFilter, setDifficultyFilter] = useState("All Levels")
@@ -33,52 +33,58 @@ export function RecipeProvider({ children }: { children: React.ReactNode }) {
   const [dietaryFilter, setDietaryFilter] = useState("All Diets")
   const [sortBy, setSortBy] = useState("latest")
 
+  // Fetch recipes from API
+  useEffect(() => {
+    const fetchRecipes = async () => {
+      try {
+        const response = await fetch('/api/recipes/all')
+        const data = await response.json()
+        // The API returns the recipes directly, not in a recipes property
+        setRecipes(data)
+      } catch (error) {
+        console.error('Error fetching recipes:', error)
+      }
+    }
+    fetchRecipes()
+  }, [])
+
   const filteredRecipes = useMemo(() => {
     let filtered = [...recipes]
 
     // Search filter
     if (searchTerm) {
-      filtered = filtered.filter(
-        (recipe) =>
-          recipe.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          recipe.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          recipe.ingredients.some((ingredient) => ingredient.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          recipe.tags.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase())),
+      filtered = filtered.filter(recipe =>
+        recipe.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        recipe.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        recipe.cuisine.toLowerCase().includes(searchTerm.toLowerCase())
       )
     }
 
     // Cuisine filter
     if (cuisineFilter !== "All Cuisines") {
-      filtered = filtered.filter((recipe) => recipe.cuisine === cuisineFilter)
+      filtered = filtered.filter(recipe => recipe.cuisine === cuisineFilter)
     }
 
     // Difficulty filter
     if (difficultyFilter !== "All Levels") {
-      filtered = filtered.filter((recipe) => recipe.difficulty === difficultyFilter)
+      filtered = filtered.filter(recipe => recipe.difficulty === difficultyFilter)
     }
 
     // Time filter
     if (timeFilter !== "Any Time") {
-      filtered = filtered.filter((recipe) => {
-        switch (timeFilter) {
-          case "Under 30 min":
-            return recipe.cookingTime < 30
-          case "30-60 min":
-            return recipe.cookingTime >= 30 && recipe.cookingTime <= 60
-          case "1+ hour":
-            return recipe.cookingTime > 60
-          default:
-            return true
-        }
-      })
+      // Extract just the number from the time string (e.g., "30 min" -> "30")
+      const timeValue = parseInt(timeFilter.replace(/[^0-9]/g, ''))
+      filtered = filtered.filter(recipe => recipe.cookingTime <= timeValue)
     }
 
     // Dietary filter
     if (dietaryFilter !== "All Diets") {
-      filtered = filtered.filter((recipe) => recipe.dietaryPreferences.includes(dietaryFilter))
+      filtered = filtered.filter(recipe => 
+        recipe.dietaryPrefs && recipe.dietaryPrefs.includes(dietaryFilter)
+      )
     }
 
-    // Sort
+    // Sort by
     switch (sortBy) {
       case "popular":
         filtered.sort((a, b) => b.likes - a.likes)
@@ -92,7 +98,7 @@ export function RecipeProvider({ children }: { children: React.ReactNode }) {
         break
       case "latest":
       default:
-        filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         break
     }
 
@@ -133,10 +139,10 @@ export function RecipeProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
-export function useRecipes() {
+export function useRecipeContext() {
   const context = useContext(RecipeContext)
   if (context === undefined) {
-    throw new Error("useRecipes must be used within a RecipeProvider")
+    throw new Error("useRecipeContext must be used within a RecipeProvider")
   }
   return context
 }

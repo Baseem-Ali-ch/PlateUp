@@ -1,0 +1,70 @@
+datasource db {
+    provider = "postgresql"
+    url = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id          String   @id @default(uuid())
+  firstName   String?
+  lastName    String?
+  email       String   @unique
+  phone       String?
+  username    String   @unique
+  password    String?  
+  lastLogin   DateTime?
+  status      String   @default("ACTIVE")
+  location    String?
+  bio         String?
+  public      Boolean   @default(true)
+  profilePic  String?
+  recipes     Recipe[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Recipe {
+  id              String   @id @default(uuid())
+  title           String
+  description     String
+  image           String?
+  prepTime        Int      @default(15)
+  cookingTime     Int      @default(30)
+  servings        Int      @default(4)
+  difficulty      String   @default("Easy")
+  cuisine         String
+  dietaryPrefs    String[]
+  ingredients     Ingredient[]
+  instructions    Instruction[]
+  tags            String[]
+  status          String   @default("DRAFT")
+  author          User     @relation(fields: [authorId], references: [id])
+  authorId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Ingredient {
+  id        String   @id @default(uuid())
+  recipe    Recipe   @relation(fields: [recipeId], references: [id])
+  recipeId  String
+  name      String
+  amount    String
+  unit      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Instruction {
+  id        String   @id @default(uuid())
+  recipe    Recipe   @relation(fields: [recipeId], references: [id])
+  recipeId  String
+  step      Int
+  content   String
+  duration  Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

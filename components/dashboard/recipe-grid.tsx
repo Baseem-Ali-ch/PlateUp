@@ -1,18 +1,55 @@
-"use client"
-
+'use client'
 import { useState, useEffect } from "react"
 import { RecipeCard } from "./recipe-card"
 import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
-import { useRecipes } from "@/context/recipe-context"
-import type { Recipe } from "@/types"
+
+interface Recipe {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  prepTime: number;
+  cookingTime: number;
+  servings: number;
+  difficulty: string;
+  cuisine: string;
+  dietaryPreferences: string[];
+  likes: number;
+  isPublished: boolean;
+  isDraft: boolean;
+  dietaryPrefs: string[];
+  tags: string[];
+  status: string;
+  author: {
+    firstName: string;
+    lastName: string;
+    profilePic?: string;
+  };
+  ingredients: {
+    id: string;
+    name: string;
+    amount: string;
+    unit: string;
+  }[];
+  instructions: {
+    id: string;
+    step: number;
+    content: string;
+    duration?: number;
+  }[];
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface RecipeGridProps {
   onRecipeClick?: (recipe: Recipe) => void
 }
 
 export function RecipeGrid({ onRecipeClick }: RecipeGridProps) {
-  const { filteredRecipes } = useRecipes()
+  const [recipes, setRecipes] = useState<Recipe[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [displayedRecipes, setDisplayedRecipes] = useState(6)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -24,15 +61,34 @@ export function RecipeGrid({ onRecipeClick }: RecipeGridProps) {
     setIsLoading(false)
   }
 
-  // Reset displayed recipes when filters change
   useEffect(() => {
-    setDisplayedRecipes(6)
-  }, [filteredRecipes])
+    const fetchRecipes = async () => {
+      try {
+        const response = await fetch("/api/recipes/all")
+        if (!response.ok) {
+          throw new Error("Failed to fetch recipes")
+        }
+        const data = await response.json()
+        setRecipes(data)
+        setLoading(false)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to fetch recipes")
+        setLoading(false)
+      }
+    }
 
-  const recipesToShow = filteredRecipes.slice(0, displayedRecipes)
-  const hasMore = displayedRecipes < filteredRecipes.length
+    fetchRecipes()
+  }, [])
 
-  if (filteredRecipes.length === 0) {
+  if (loading) {
+    return <div className="text-center py-8">Loading recipes...</div>
+  }
+
+  if (error) {
+    return <div className="text-center text-red-500 py-8">{error}</div>
+  }
+
+  if (recipes.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="text-gray-400 mb-4">
@@ -50,6 +106,9 @@ export function RecipeGrid({ onRecipeClick }: RecipeGridProps) {
       </div>
     )
   }
+
+  const recipesToShow = recipes.slice(0, displayedRecipes)
+  const hasMore = displayedRecipes < recipes.length
 
   return (
     <div className="space-y-8">

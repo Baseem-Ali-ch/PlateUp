@@ -30,7 +30,7 @@ export function Header({ onCreateRecipe, onProfileClick, onMyRecipesClick }: Hea
           </div>
           <div>
             <h1 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-teal-600 bg-clip-text text-transparent">
-              Recipe Share
+              PlateUp
             </h1>
           </div>
         </div>
@@ -44,7 +44,7 @@ export function Header({ onCreateRecipe, onProfileClick, onMyRecipesClick }: Hea
             Add Recipe
           </Button>
 
-          <DropdownMenu>
+          {/* <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                 <Avatar className="h-10 w-10">
@@ -90,7 +90,7 @@ export function Header({ onCreateRecipe, onProfileClick, onMyRecipesClick }: Hea
                 <span>Log out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu> */}
         </div>
       </div>
     </header>

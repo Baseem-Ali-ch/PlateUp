@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useAuth } from "@/context/auth-context"
-import { AuthForm } from "@/components/auth/auth-form"
 import { Header } from "@/components/layout/header"
 import { FilterBar } from "@/components/dashboard/filter-bar"
 import { RecipeGrid } from "@/components/dashboard/recipe-grid"
@@ -28,10 +27,6 @@ export default function Home() {
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
       </div>
     )
-  }
-
-  if (!isAuthenticated) {
-    return <AuthForm />
   }
 
   const handleRecipeClick = (recipe: Recipe) => {

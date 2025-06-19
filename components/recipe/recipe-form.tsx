@@ -11,10 +11,19 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Plus, Minus, Upload, X, Save, Eye, ArrowLeft, Clock, Users, ChefHat, ImageIcon } from "lucide-react"
+import { Plus, Minus, Upload, X, Save, Eye, ArrowLeft, Clock, Users, ChefHat, ImageIcon, User } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { cuisineTypes, difficultyLevels, dietaryPreferences } from "@/utils/mock-data"
 import type { Ingredient, RecipeStep } from "@/utils/mock-data"
+import { v4 as uuidv4 } from "uuid";
+import cloudinary from "cloudinary-core";
+
+// Initialize Cloudinary
+const cloudinaryCore = cloudinary.Cloudinary.new({
+  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
+  api_secret: process.env.NEXT_PUBLIC_CLOUDINARY_API_SECRET,
+});
 
 interface RecipeFormData {
   title: string
@@ -29,15 +38,19 @@ interface RecipeFormData {
   ingredients: Ingredient[]
   instructions: RecipeStep[]
   tags: string[]
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  location: string
+  bio: string
 }
 
 interface RecipeFormProps {
   onBack: () => void
-  onSave: (recipe: RecipeFormData, isDraft: boolean) => void
-  initialData?: Partial<RecipeFormData>
 }
 
-export function RecipeForm({ onBack, onSave, initialData }: RecipeFormProps) {
+export function RecipeForm({ onBack }: RecipeFormProps) {
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState<RecipeFormData>({
     title: "",
@@ -52,19 +65,26 @@ export function RecipeForm({ onBack, onSave, initialData }: RecipeFormProps) {
     ingredients: [{ id: "1", name: "", amount: "", unit: "" }],
     instructions: [{ id: "1", instruction: "", duration: 0 }],
     tags: [],
-    ...initialData,
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    location: "",
+    bio: "",
   })
 
   const [newTag, setNewTag] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const steps = [
-    { id: 1, title: "Basic Info", icon: <ImageIcon className="w-4 h-4" /> },
-    { id: 2, title: "Details", icon: <Clock className="w-4 h-4" /> },
-    { id: 3, title: "Ingredients", icon: <Plus className="w-4 h-4" /> },
-    { id: 4, title: "Instructions", icon: <ChefHat className="w-4 h-4" /> },
-    { id: 5, title: "Tags & Preview", icon: <Eye className="w-4 h-4" /> },
+    { id: 1, title: "User", icon: <User className="w-4 h-4" /> },
+    { id: 2, title: "Basic", icon: <ImageIcon className="w-4 h-4" /> },
+    { id: 3, title: "Details", icon: <Clock className="w-4 h-4" /> },
+    { id: 4, title: "Ingredients", icon: <Plus className="w-4 h-4" /> },
+    { id: 5, title: "Instructions", icon: <ChefHat className="w-4 h-4" /> },
+    { id: 6, title: "Preview", icon: <Eye className="w-4 h-4" /> },
   ]
 
   const validateStep = (step: number): boolean => {
@@ -72,24 +92,64 @@ export function RecipeForm({ onBack, onSave, initialData }: RecipeFormProps) {
 
     switch (step) {
       case 1:
-        if (!formData.title.trim()) newErrors.title = "Title is required"
-        if (!formData.description.trim()) newErrors.description = "Description is required"
+        if (!formData.firstName.trim()) newErrors.firstName = "First name is required"
+        if (!formData.lastName.trim()) newErrors.lastName = "Last name is required"
+        if (!formData.email.trim()) newErrors.email = "Email is required"
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+          newErrors.email = "Please enter a valid email address"
+        }
+        if (formData.phone && !/^[+]?[0-9]{10,}$/.test(formData.phone)) {
+          newErrors.phone = "Please enter a valid phone number"
+        }
         break
+
       case 2:
-        if (formData.prepTime <= 0) newErrors.prepTime = "Prep time must be greater than 0"
-        if (formData.cookingTime <= 0) newErrors.cookingTime = "Cooking time must be greater than 0"
-        if (formData.servings <= 0) newErrors.servings = "Servings must be greater than 0"
+        if (!formData.title.trim()) newErrors.title = "Recipe title is required"
+        if (!formData.description.trim()) newErrors.description = "Recipe description is required"
+        if (!formData.image) newErrors.image = "Please upload a recipe image"
         break
+
       case 3:
+        if (formData.prepTime <= 0) newErrors.prepTime = "Preparation time must be greater than 0 minutes"
+        if (formData.cookingTime <= 0) newErrors.cookingTime = "Cooking time must be greater than 0 minutes"
+        if (formData.servings <= 0) newErrors.servings = "Number of servings must be greater than 0"
+        if (!formData.difficulty) newErrors.difficulty = "Please select a difficulty level"
+        if (!formData.cuisine) newErrors.cuisine = "Please select a cuisine type"
+        break
+
+      case 4:
         const validIngredients = formData.ingredients.filter((ing) => ing.name.trim() && ing.amount.trim())
         if (validIngredients.length === 0) {
           newErrors.ingredients = "At least one ingredient is required"
+        } else {
+          const ingredientErrors = formData.ingredients.reduce((acc, ing) => {
+            if (!ing.name.trim()) acc[ing.id] = "Ingredient name is required"
+            return acc
+          }, {} as Record<string, string>)
+          if (Object.keys(ingredientErrors).length > 0) {
+            newErrors.ingredients = "Please fill in all ingredient details"
+          }
         }
         break
-      case 4:
+
+      case 5:
         const validInstructions = formData.instructions.filter((inst) => inst.instruction.trim())
         if (validInstructions.length === 0) {
           newErrors.instructions = "At least one instruction is required"
+        } else {
+          const instructionErrors = formData.instructions.reduce((acc, inst) => {
+            if (!inst.instruction.trim()) acc[inst.id] = "Instruction is required"
+            return acc
+          }, {} as Record<string, string>)
+          if (Object.keys(instructionErrors).length > 0) {
+            newErrors.instructions = "Please fill in all instruction steps"
+          }
+        }
+        break
+
+      case 6:
+        if (formData.tags.length < 1) {
+          newErrors.tags = "Please add at least one tag"
         }
         break
     }
@@ -100,7 +160,7 @@ export function RecipeForm({ onBack, onSave, initialData }: RecipeFormProps) {
 
   const nextStep = () => {
     if (validateStep(currentStep)) {
-      setCurrentStep((prev) => Math.min(prev + 1, 5))
+      setCurrentStep((prev) => Math.min(prev + 1, 6))
     }
   }
 
@@ -168,32 +228,191 @@ export function RecipeForm({ onBack, onSave, initialData }: RecipeFormProps) {
     )
   }
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      // In a real app, you'd upload to a service like Cloudinary or AWS S3
-      const imageUrl = URL.createObjectURL(file)
-      updateFormData("image", imageUrl)
-      toast({ title: "Image uploaded", description: "Recipe image has been uploaded successfully" })
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      // Create a preview URL for immediate display
+      const previewUrl = URL.createObjectURL(file);
+      updateFormData("image", previewUrl);
+
+      // Generate a unique filename
+      const fileName = `${uuidv4()}-${file.name}`;
+
+      // Upload to Cloudinary
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", "PlateUp");
+      formData.append("public_id", fileName);
+      formData.append("upload_preset", "default_preset"); // Using default preset
+      formData.append("cloud_name", process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!);
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to upload image to Cloudinary");
+      }
+
+      const result = await response.json();
+      const imageUrl = result.secure_url;
+      updateFormData("image", imageUrl);
+
+      // Clean up the preview URL
+      URL.revokeObjectURL(previewUrl);
+
+      toast({
+        title: "Image uploaded",
+        description: "Recipe image has been uploaded successfully",
+      });
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toast({
+        title: "Upload failed",
+        description: error instanceof Error ? error.message : "Failed to upload image",
+        variant: "destructive",
+      });
     }
-  }
+  };
 
-  const handleSave = (isDraft: boolean) => {
-    if (!isDraft && !validateStep(currentStep)) return
+  const handleSave = async (isDraft: boolean) => {
+    setIsLoading(true);
+    try {
+      if (!isDraft && !validateStep(currentStep)) return;
 
-    // Filter out empty ingredients and instructions
-    const cleanedData = {
-      ...formData,
-      ingredients: formData.ingredients.filter((ing) => ing.name.trim() && ing.amount.trim()),
-      instructions: formData.instructions.filter((inst) => inst.instruction.trim()),
+      // Filter out empty ingredients and instructions
+      const cleanedData = {
+        ...formData,
+        ingredients: formData.ingredients.filter((ing) => ing.name.trim() && ing.amount.trim()),
+        instructions: formData.instructions.filter((inst) => inst.instruction.trim()),
+      };
+
+      // If this is a draft, just save locally
+      if (isDraft) {
+        const response = await fetch("/api/recipes", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            recipe: cleanedData,
+            isDraft,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to save recipe");
+        }
+
+        const data = await response.json();
+        console.log("Recipe saved:", data.recipe);
+
+        // Reset form after successful save
+        setFormData({
+          title: "",
+          description: "",
+          image: "",
+          prepTime: 15,
+          cookingTime: 30,
+          servings: 4,
+          difficulty: "Easy",
+          cuisine: "Italian",
+          dietaryPreferences: [],
+          ingredients: [{ id: "1", name: "", amount: "", unit: "" }],
+          instructions: [{ id: "1", instruction: "", duration: 0 }],
+          tags: [],
+          firstName: "",
+          lastName: "",
+          email: "",
+          phone: "",
+          location: "",
+          bio: "",
+        });
+        setCurrentStep(1);
+        setNewTag("");
+        setErrors({});
+
+        toast({
+          title: "Recipe saved",
+          description: "Your recipe has been saved successfully",
+        });
+        return;
+      }
+
+      // For publishing, validate all required fields
+      if (!cleanedData.title.trim()) throw new Error("Title is required");
+      if (!cleanedData.description.trim()) throw new Error("Description is required");
+      if (!cleanedData.image) throw new Error("Image is required");
+      if (cleanedData.ingredients.length < 1) throw new Error("At least one ingredient is required");
+      if (cleanedData.instructions.length < 1) throw new Error("At least one instruction is required");
+      if (cleanedData.tags.length < 1) throw new Error("At least one tag is required");
+
+      // Save to database
+      const response = await fetch("/api/recipes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          recipe: cleanedData,
+          isDraft,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save recipe");
+      }
+
+      const data = await response.json();
+      console.log("Recipe saved:", data.recipe);
+
+      // Reset form after successful publish
+      setFormData({
+        title: "",
+        description: "",
+        image: "",
+        prepTime: 15,
+        cookingTime: 30,
+        servings: 4,
+        difficulty: "Easy",
+        cuisine: "Italian",
+        dietaryPreferences: [],
+        ingredients: [{ id: "1", name: "", amount: "", unit: "" }],
+        instructions: [{ id: "1", instruction: "", duration: 0 }],
+        tags: [],
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        location: "",
+        bio: "",
+      });
+      setCurrentStep(1);
+      setNewTag("");
+      setErrors({});
+
+      toast({
+        title: "Recipe published",
+        description: "Your recipe has been published successfully",
+      });
+    } catch (error) {
+      console.error("Error saving recipe:", error);
+      toast({
+        title: "Save failed",
+        description: error instanceof Error ? error.message : "Failed to save recipe",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
-
-    onSave(cleanedData, isDraft)
-    toast({
-      title: isDraft ? "Draft saved" : "Recipe published",
-      description: isDraft ? "Your recipe has been saved as a draft" : "Your recipe has been published successfully",
-    })
-  }
+  };
 
   const toggleDietaryPreference = (pref: string) => {
     const current = formData.dietaryPreferences
@@ -222,14 +441,27 @@ export function RecipeForm({ onBack, onSave, initialData }: RecipeFormProps) {
             </div>
 
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => handleSave(true)} className="gap-2">
+              {/* <Button variant="outline" onClick={() => handleSave(true)} className="gap-2">
                 <Save className="w-4 h-4" />
                 Save Draft
-              </Button>
-              <Button onClick={() => handleSave(false)} className="gap-2 bg-gradient-to-r from-orange-500 to-teal-500">
-                <Eye className="w-4 h-4" />
-                Publish Recipe
-              </Button>
+              </Button> */}
+              {/* <Button
+                onClick={() => handleSave(false)}
+                className="gap-2 bg-gradient-to-r from-orange-500 to-teal-500"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Publishing...
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Eye className="w-4 h-4" />
+                    Publish Recipe
+                  </div>
+                )}
+              </Button> */}
             </div>
           </div>
         </div>
@@ -243,13 +475,12 @@ export function RecipeForm({ onBack, onSave, initialData }: RecipeFormProps) {
               {steps.map((step, index) => (
                 <div key={step.id} className="flex items-center">
                   <div
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
-                      currentStep === step.id
-                        ? "bg-orange-100 text-orange-600"
-                        : currentStep > step.id
-                          ? "bg-green-100 text-green-600"
-                          : "bg-gray-100 text-gray-400"
-                    }`}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg ${currentStep === step.id
+                      ? "bg-orange-100 text-orange-600"
+                      : currentStep > step.id
+                        ? "bg-green-100 text-green-600"
+                        : "bg-gray-100 text-gray-400"
+                      }`}
                   >
                     {step.icon}
                     <span className="hidden sm:inline text-sm font-medium">{step.title}</span>
@@ -265,8 +496,95 @@ export function RecipeForm({ onBack, onSave, initialData }: RecipeFormProps) {
           {/* Form Content */}
           <Card>
             <CardContent className="p-6">
-              {/* Step 1: Basic Info */}
+              {/* Step 1: User Information */}
               {currentStep === 1 && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-2xl font-bold mb-4">Your Information</h2>
+                    <p className="text-gray-600 mb-6">Let's get to know you better</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="firstName">First Name *</Label>
+                        <Input
+                          id="firstName"
+                          value={formData.firstName}
+                          onChange={(e) => updateFormData("firstName", e.target.value)}
+                          placeholder="Enter your first name"
+                          className={errors.firstName ? "border-red-500" : ""}
+                        />
+                        {errors.firstName && <p className="text-sm text-red-500 mt-1">{errors.firstName}</p>}
+                      </div>
+
+                      <div>
+                        <Label htmlFor="lastName">Last Name *</Label>
+                        <Input
+                          id="lastName"
+                          value={formData.lastName}
+                          onChange={(e) => updateFormData("lastName", e.target.value)}
+                          placeholder="Enter your last name"
+                          className={errors.lastName ? "border-red-500" : ""}
+                        />
+                        {errors.lastName && <p className="text-sm text-red-500 mt-1">{errors.lastName}</p>}
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="email">Email Address *</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => updateFormData("email", e.target.value)}
+                        placeholder="your.email@example.com"
+                        className={errors.email ? "border-red-500" : ""}
+                      />
+                      {errors.email && <p className="text-sm text-red-500 mt-1">{errors.email}</p>}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => updateFormData("phone", e.target.value)}
+                        placeholder="Optional - +1 (555) 123-4567"
+                        className={errors.phone ? "border-red-500" : ""}
+                      />
+                      {errors.phone && <p className="text-sm text-red-500 mt-1">{errors.phone}</p>}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="location">Location</Label>
+                      <Input
+                        id="location"
+                        value={formData.location}
+                        onChange={(e) => updateFormData("location", e.target.value)}
+                        placeholder="City, State/Country"
+                        className={errors.location ? "border-red-500" : ""}
+                      />
+                      {errors.location && <p className="text-sm text-red-500 mt-1">{errors.location}</p>}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="bio">Bio (Optional)</Label>
+                      <Textarea
+                        id="bio"
+                        value={formData.bio}
+                        onChange={(e) => updateFormData("bio", e.target.value)}
+                        placeholder="Tell us a bit about yourself..."
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: Basic Recipe Info */}
+              {currentStep === 2 && (
                 <div className="space-y-6">
                   <div>
                     <h2 className="text-2xl font-bold mb-4">Basic Information</h2>
@@ -341,8 +659,8 @@ export function RecipeForm({ onBack, onSave, initialData }: RecipeFormProps) {
                 </div>
               )}
 
-              {/* Step 2: Details */}
-              {currentStep === 2 && (
+              {/* Step 3: Recipe Details */}
+              {currentStep === 3 && (
                 <div className="space-y-6">
                   <div>
                     <h2 className="text-2xl font-bold mb-4">Recipe Details</h2>
@@ -443,8 +761,8 @@ export function RecipeForm({ onBack, onSave, initialData }: RecipeFormProps) {
                 </div>
               )}
 
-              {/* Step 3: Ingredients */}
-              {currentStep === 3 && (
+              {/* Step 4: Ingredients */}
+              {currentStep === 4 && (
                 <div className="space-y-6">
                   <div>
                     <h2 className="text-2xl font-bold mb-4">Ingredients</h2>
@@ -489,8 +807,8 @@ export function RecipeForm({ onBack, onSave, initialData }: RecipeFormProps) {
                 </div>
               )}
 
-              {/* Step 4: Instructions */}
-              {currentStep === 4 && (
+              {/* Step 5: Instructions */}
+              {currentStep === 5 && (
                 <div className="space-y-6">
                   <div>
                     <h2 className="text-2xl font-bold mb-4">Instructions</h2>
@@ -512,7 +830,7 @@ export function RecipeForm({ onBack, onSave, initialData }: RecipeFormProps) {
                               rows={3}
                             />
                             <div className="flex items-center gap-3">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1">
                                 <Clock className="w-4 h-4 text-gray-400" />
                                 <Input
                                   type="number"
@@ -546,8 +864,8 @@ export function RecipeForm({ onBack, onSave, initialData }: RecipeFormProps) {
                 </div>
               )}
 
-              {/* Step 5: Tags & Preview */}
-              {currentStep === 5 && (
+              {/* Step 6: Tags & Preview */}
+              {currentStep === 6 && (
                 <div className="space-y-6">
                   <div>
                     <h2 className="text-2xl font-bold mb-4">Tags & Preview</h2>
@@ -583,8 +901,16 @@ export function RecipeForm({ onBack, onSave, initialData }: RecipeFormProps) {
                       <h3 className="text-lg font-semibold mb-4">Recipe Preview</h3>
                       <div className="space-y-4">
                         <div>
-                          <h4 className="font-medium text-2xl">{formData.title || "Recipe Title"}</h4>
+                          <div className="flex items-center gap-2 mb-2">
+                            <h4 className="font-medium text-2xl">{formData.title || "Recipe Title"}</h4>
+                            <Badge variant="outline" className="text-xs">
+                              by {formData.firstName} {formData.lastName}
+                            </Badge>
+                          </div>
                           <p className="text-gray-600 mt-1">{formData.description || "Recipe description"}</p>
+                          {formData.location && (
+                            <p className="text-sm text-gray-500 mt-1"> {formData.location}</p>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-6 text-sm">
@@ -636,23 +962,33 @@ export function RecipeForm({ onBack, onSave, initialData }: RecipeFormProps) {
                   Previous
                 </Button>
 
-                {currentStep < 5 ? (
+                {currentStep < 6 ? (
                   <Button onClick={nextStep} className="gap-2">
                     Next
                     <ArrowLeft className="w-4 h-4 rotate-180" />
                   </Button>
                 ) : (
                   <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => handleSave(true)} className="gap-2">
+                    {/* <Button variant="outline" onClick={() => handleSave(true)} className="gap-2">
                       <Save className="w-4 h-4" />
                       Save Draft
-                    </Button>
+                    </Button> */}
                     <Button
                       onClick={() => handleSave(false)}
                       className="gap-2 bg-gradient-to-r from-orange-500 to-teal-500"
+                      disabled={isLoading}
                     >
-                      <Eye className="w-4 h-4" />
-                      Publish Recipe
+                      {isLoading ? (
+                        <div className="flex items-center gap-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Publishing...
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Eye className="w-4 h-4" />
+                          Publish Recipe
+                        </div>
+                      )}
                     </Button>
                   </div>
                 )}

@@ -62,14 +62,6 @@ export function RecipeCard({ recipe, onRecipeClick }: RecipeCardProps) {
             {recipe.difficulty}
           </Badge>
         </div>
-        <button
-          onClick={handleLike}
-          className={`absolute top-3 left-3 p-2 rounded-full transition-all duration-200 ${
-            isLiked ? "bg-red-500 text-white shadow-lg" : "bg-white/80 text-gray-600 hover:bg-white hover:text-red-500"
-          }`}
-        >
-          <Heart className={`w-4 h-4 ${isLiked ? "fill-current" : ""}`} />
-        </button>
       </div>
 
       <CardContent className="p-4 space-y-3">
@@ -85,37 +77,32 @@ export function RecipeCard({ recipe, onRecipeClick }: RecipeCardProps) {
             <Clock className="w-4 h-4" />
             <span>{recipe.cookingTime} min</span>
           </div>
-          <div className="flex items-center gap-1">
-            <Heart className="w-4 h-4" />
-            <span>{likeCount}</span>
-          </div>
         </div>
 
-        <div className="flex flex-wrap gap-1">
-          {recipe.dietaryPreferences.slice(0, 2).map((pref) => (
-            <Badge key={pref} variant="secondary" className="text-xs">
+        <div className="flex flex-wrap gap-2">
+          {recipe.dietaryPrefs?.slice(0, 2).map((pref, index) => (
+            <Badge key={index} variant="outline" className="text-xs">
               {pref}
             </Badge>
           ))}
-          {recipe.dietaryPreferences.length > 2 && (
+          {recipe.dietaryPrefs?.length > 2 && (
             <Badge variant="secondary" className="text-xs">
-              +{recipe.dietaryPreferences.length - 2}
+              +{recipe.dietaryPrefs.length - 2}
             </Badge>
           )}
         </div>
 
         <div className="flex items-center justify-between pt-2 border-t">
           <div className="flex items-center gap-2">
-            <Avatar className="w-6 h-6">
-              <AvatarImage src={recipe.author.avatar || "/placeholder.svg"} alt={recipe.author.name} />
+            <Avatar>
+              <AvatarImage src={recipe.author.profilePic || "/placeholder.svg"} alt={`${recipe.author.firstName} ${recipe.author.lastName}`} />
               <AvatarFallback className="text-xs">
-                {recipe.author.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")}
+                {recipe.author.firstName?.[0] || ''}{recipe.author.lastName?.[0] || ''}
               </AvatarFallback>
             </Avatar>
-            <span className="text-sm text-gray-600">{recipe.author.name}</span>
+            <span className="text-sm text-gray-600">
+              {recipe.author.firstName} {recipe.author.lastName}
+            </span>
           </div>
           <Badge variant="outline" className="text-xs">
             {recipe.cuisine}
